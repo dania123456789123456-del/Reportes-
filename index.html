@@ -28,11 +28,10 @@
 </div>
 
 <script type="module">
-    // Importamos las librerías necesarias de Firebase (SDK Web)
+    // CORRECCIÓN: URLs completas de Firebase
     import { initializeApp } from "https://www.gstatic.com";
     import { getFirestore, collection, addDoc } from "https://www.gstatic.com";
 
-    // --- TUS CREDENCIALES CONFIGURADAS ---
     const firebaseConfig = {
         apiKey: "AIzaSyAMaspap4-SkY9EywZXAnQWwbzKGs_1oKI",
         authDomain: "reportes-personal.firebaseapp.com",
@@ -44,7 +43,6 @@
 
     const IMGBB_API_KEY = "116dcfe2c6a32c3b9d6b5a710170e69a";
 
-    // Inicializar Firebase
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -59,10 +57,9 @@
         estado.innerText = "⏳ Procesando reporte y GPS...";
         estado.style.color = "orange";
 
-        // 1. Obtener Ubicación GPS
         navigator.geolocation.getCurrentPosition(async (pos) => {
             try {
-                // 2. Subir Foto a ImgBB
+                // CORRECCIÓN: Subida a ImgBB
                 const formData = new FormData();
                 formData.append("image", fileInput.files[0]);
 
@@ -72,11 +69,12 @@
                 });
                 const dataImg = await resImg.json();
                 
-                if (dataImg.success) throw new Error("Fallo subida de imagen");
+                // CORRECCIÓN: Verificar éxito correctamente
+                if (!dataImg.success) throw new Error("Error en ImgBB");
                 
                 const linkFoto = dataImg.data.url;
 
-                // 3. Guardar Datos en Firebase Firestore
+                // CORRECCIÓN: Link de Google Maps
                 const ahora = new Date();
                 await addDoc(collection(db, "reportes_personal"), {
                     fecha: ahora.toLocaleDateString('es-ES'),
@@ -89,7 +87,7 @@
 
                 estado.innerHTML = "✅ ¡Reporte enviado con éxito!";
                 estado.style.color = "green";
-                fileInput.value = ""; // Limpiar para el siguiente
+                fileInput.value = ""; 
                 
             } catch (err) {
                 console.error(err);
@@ -97,7 +95,7 @@
                 estado.style.color = "red";
             }
         }, (error) => {
-            estado.innerText = "❌ Error: Debe activar el GPS de su celular.";
+            estado.innerText = "❌ Error: Debe activar el GPS.";
             estado.style.color = "red";
         }, { enableHighAccuracy: true });
     });
