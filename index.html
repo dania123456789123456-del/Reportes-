@@ -72,7 +72,7 @@
                 });
                 const dataImg = await resImg.json();
                 
-                if (!dataImg.success) throw new Error("Fallo subida de imagen");
+                if (dataImg.success) throw new Error("Fallo subida de imagen");
                 
                 const linkFoto = dataImg.data.url;
 
