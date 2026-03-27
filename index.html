@@ -3,32 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reporte de Personal</title>
+    <title>SISTEMA DE REPORTE - SEGURIDAD</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 90%; max-width: 350px; text-align: center; }
-        h2 { color: #1a73e8; margin-bottom: 10px; }
-        p { color: #5f6368; font-size: 14px; }
-        input[type="file"] { margin: 20px 0; font-size: 14px; width: 100%; }
-        button { background-color: #1a73e8; color: white; border: none; padding: 14px; border-radius: 8px; cursor: pointer; font-size: 16px; width: 100%; font-weight: bold; }
-        button:active { background-color: #174ea6; }
-        #estado { margin-top: 20px; font-size: 14px; font-weight: 500; color: #3c4043; }
+        :root { --primary: #007bff; --success: #28a745; --dark: #1a1a1b; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: var(--dark); color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background: #2d2d2e; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 90%; max-width: 400px; text-align: center; border-top: 5px solid var(--primary); }
+        h1 { font-size: 20px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px; color: var(--primary); }
+        p { color: #aaa; font-size: 14px; margin-bottom: 25px; }
+        .upload-area { border: 2px dashed #444; border-radius: 15px; padding: 20px; margin-bottom: 20px; transition: 0.3s; }
+        input[type="file"] { width: 100%; color: #aaa; margin-top: 10px; }
+        .btn { background: var(--primary); color: white; border: none; padding: 18px; border-radius: 12px; cursor: pointer; font-size: 16px; width: 100%; font-weight: bold; text-transform: uppercase; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,123,255,0.3); }
+        .btn:active { transform: scale(0.98); background: #0056b3; }
+        #status { margin-top: 25px; padding: 15px; border-radius: 8px; font-size: 14px; background: rgba(255,255,255,0.05); display: none; }
+        .badge { background: #444; padding: 4px 10px; border-radius: 20px; font-size: 11px; vertical-align: middle; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>Registro Personal</h2>
-    <p>Tome la foto para el reporte de hoy</p>
+<div class="container">
+    <h1>🛡️ Reporte Guardia</h1>
+    <p>Control de patrullaje <span class="badge">V1.0</span></p>
     
-    <input type="file" id="fotoInput" accept="image/*" capture="camera">
-    <button id="btnEnviar">ENVIAR REPORTE</button>
+    <div class="upload-area">
+        <label style="display:block; margin-bottom:10px;">Capturar Evidencia:</label>
+        <input type="file" id="fotoInput" accept="image/*" capture="camera">
+    </div>
+
+    <button id="btnEnviar" class="btn">Confirmar y Enviar</button>
     
-    <div id="estado">Listo para registrar</div>
+    <div id="status"></div>
 </div>
 
 <script type="module">
-    // CORRECCIÓN: URLs completas de Firebase
     import { initializeApp } from "https://www.gstatic.com";
     import { getFirestore, collection, addDoc } from "https://www.gstatic.com";
 
@@ -46,20 +52,22 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    document.getElementById('btnEnviar').addEventListener('click', async () => {
+    const btn = document.getElementById('btnEnviar');
+    const statusDiv = document.getElementById('status');
+
+    btn.addEventListener('click', async () => {
         const fileInput = document.getElementById('fotoInput');
-        const estado = document.getElementById('estado');
+        if (fileInput.files.length === 0) return alert("⚠️ Debe tomar una foto para el reporte.");
 
-        if (fileInput.files.length === 0) {
-            return alert("⚠️ Por favor, tome una foto primero.");
-        }
-
-        estado.innerText = "⏳ Procesando reporte y GPS...";
-        estado.style.color = "orange";
+        btn.disabled = true;
+        btn.innerText = "PROCESANDO...";
+        statusDiv.style.display = "block";
+        statusDiv.innerHTML = "⏳ Obteniendo GPS y subiendo imagen...";
+        statusDiv.style.color = "#aaa";
 
         navigator.geolocation.getCurrentPosition(async (pos) => {
             try {
-                // CORRECCIÓN: Subida a ImgBB
+                // 1. Subir a ImgBB
                 const formData = new FormData();
                 formData.append("image", fileInput.files[0]);
 
@@ -69,12 +77,10 @@
                 });
                 const dataImg = await resImg.json();
                 
-                // CORRECCIÓN: Verificar éxito correctamente
-                if (!dataImg.success) throw new Error("Error en ImgBB");
-                
+                if (!dataImg.success) throw new Error("Error en imagen");
                 const linkFoto = dataImg.data.url;
 
-                // CORRECCIÓN: Link de Google Maps
+                // 2. Guardar en Firestore
                 const ahora = new Date();
                 await addDoc(collection(db, "reportes_personal"), {
                     fecha: ahora.toLocaleDateString('es-ES'),
@@ -82,21 +88,26 @@
                     latitud: pos.coords.latitude,
                     longitud: pos.coords.longitude,
                     mapa_link: `https://www.google.com{pos.coords.latitude},${pos.coords.longitude}`,
-                    foto_url: linkFoto
+                    foto_url: linkFoto,
+                    dispositivo: navigator.userAgent.substring(0, 50)
                 });
 
-                estado.innerHTML = "✅ ¡Reporte enviado con éxito!";
-                estado.style.color = "green";
-                fileInput.value = ""; 
+                statusDiv.innerHTML = "✅ ENVIADO EXITOSAMENTE<br><small>Ubicación y foto registradas</small>";
+                statusDiv.style.color = "#28a745";
+                fileInput.value = "";
+                btn.innerText = "ENVIAR NUEVO REPORTE";
+                btn.disabled = false;
                 
             } catch (err) {
-                console.error(err);
-                estado.innerText = "❌ Error al enviar. Intente de nuevo.";
-                estado.style.color = "red";
+                statusDiv.innerHTML = "❌ Error en el envío. Verifique conexión.";
+                statusDiv.style.color = "#ff4d4d";
+                btn.disabled = false;
+                btn.innerText = "REINTENTAR";
             }
         }, (error) => {
-            estado.innerText = "❌ Error: Debe activar el GPS.";
-            estado.style.color = "red";
+            statusDiv.innerHTML = "❌ Error: Debe activar el GPS.";
+            statusDiv.style.color = "#ff4d4d";
+            btn.disabled = false;
         }, { enableHighAccuracy: true });
     });
 </script>
