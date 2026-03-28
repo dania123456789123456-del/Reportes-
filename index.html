@@ -214,45 +214,6 @@ function mostrarPreview(event) {
     preview.style.display = 'block';
 }
 
-// --- AGREGAR FECHA, HORA Y UBICACIÓN A FOTO ---
-async function agregarTextoAFoto(file) {
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.src = URL.createObjectURL(file);
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-
-            // Dibujar la foto original
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-            // Dibujar texto
-            navigator.geolocation.getCurrentPosition(pos => {
-                const lat = pos.coords.latitude.toFixed(5);
-                const lon = pos.coords.longitude.toFixed(5);
-                const ahora = new Date();
-
-                ctx.fillStyle = "white";
-                ctx.font = `${Math.floor(canvas.width/25)}px Arial`;
-                ctx.fillText(`🛡️ ${window.nombre || ''}`, 20, 40);
-                ctx.fillText(`📅 ${ahora.toLocaleDateString()} ⏰ ${ahora.toLocaleTimeString()}`, 20, 80);
-                ctx.fillText(`📍 ${lat},${lon}`, 20, 120);
-
-                canvas.toBlob(blob => resolve(blob));
-            }, () => {
-                const ahora = new Date();
-                ctx.fillStyle = "white";
-                ctx.font = `${Math.floor(canvas.width/25)}px Arial`;
-                ctx.fillText(`🛡️ ${window.nombre || ''}`, 20, 40);
-                ctx.fillText(`📅 ${ahora.toLocaleDateString()} ⏰ ${ahora.toLocaleTimeString()}`, 20, 80);
-                canvas.toBlob(blob => resolve(blob));
-            });
-        };
-    });
-}
-
 // --- ENVIAR REPORTE ---
 async function enviar() {
     const unidad = document.getElementById("unidad").value;
@@ -264,44 +225,47 @@ async function enviar() {
     if (!unidad || !turno) { alert("Seleccione unidad y turno"); return; }
     if (fileInput.files.length === 0) { alert("Toma una foto"); return; }
 
-    status.innerText = "⏳ Procesando foto...";
-
+    status.innerText = "⏳ Enviando...";
     const file = fileInput.files[0];
-    const fotoConTexto = await agregarTextoAFoto(file);
 
-    const ahora = new Date();
-    const texto = `🛡️ REPORTE\n👤 ${window.nombre}\n🏢 ${unidad}\n🌙 Turno: ${turno}\n📅 ${ahora.toLocaleDateString()}\n⏰ ${ahora.toLocaleTimeString()}`;
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            const ahora = new Date();
+            const texto = `🛡️ REPORTE\n👤 ${window.nombre}\n🏢 ${unidad}\n🌙 Turno: ${turno}\n📅 ${ahora.toLocaleDateString()}\n⏰ ${ahora.toLocaleTimeString()}\n📍 https://www.google.com/maps?q=${lat},${lon}`;
 
-    try {
-        // --- MENSAJE TELEGRAM ---
-        await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chat_id: CHAT_ID, text: texto })
-        });
+            // --- ENVIAR MENSAJE A TELEGRAM ---
+            await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id: CHAT_ID, text: texto })
+            });
 
-        // --- FOTO TELEGRAM ---
-        const formData = new FormData();
-        formData.append("chat_id", CHAT_ID);
-        const nombreArchivo = `reporte_${ahora.getFullYear()}${ahora.getMonth()+1}${ahora.getDate()}_${ahora.getHours()}${ahora.getMinutes()}${ahora.getSeconds()}.jpg`;
-        formData.append("photo", fotoConTexto, nombreArchivo);
+            // --- ENVIAR FOTO A TELEGRAM ---
+            const formData = new FormData();
+            formData.append("chat_id", CHAT_ID);
+            formData.append("photo", file);
 
-        await fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, {
-            method: "POST",
-            body: formData
-        });
+            await fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, {
+                method: "POST",
+                body: formData
+            });
 
-        // --- DESCARGA EN DISPOSITIVO ---
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(fotoConTexto);
-        a.download = nombreArchivo;
-        a.click();
+            // --- GUARDAR FOTO EN EL DISPOSITIVO ---
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(file);
+            a.download = `${window.nombre || 'reporte'}.jpg`;
+            a.click();
 
-        status.innerText = "✅ Reporte enviado y foto guardada";
-    } catch(err) {
-        console.error(err);
-        status.innerText = "❌ Error al enviar";
-    }
+            status.innerText = "✅ Reporte enviado y foto guardada";
+        } catch (err) {
+            console.error(err);
+            status.innerText = "❌ Error al enviar";
+        }
+    }, () => {
+        status.innerText = "❌ Activa el GPS";
+    });
 }
 </script>
 
