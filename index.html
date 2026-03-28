@@ -59,7 +59,6 @@ input, select {
     box-sizing: border-box;
     font-size: 14px;
     transition: 0.3s;
-
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
@@ -215,6 +214,7 @@ function mostrarPreview(event) {
     preview.style.display = 'block';
 }
 
+// --- ENVIAR REPORTE ---
 async function enviar() {
     const unidad = document.getElementById("unidad").value;
     const turno = document.getElementById("turno").value;
@@ -233,25 +233,34 @@ async function enviar() {
             const lat = pos.coords.latitude;
             const lon = pos.coords.longitude;
             const ahora = new Date();
-            const texto = `🛡️ REPORTE\n👤 ${window.nombre}\n🏢 ${unidad}\n🌙 Turno: ${turno}\n📅 ${ahora.toLocaleDateString()}\n⏰ ${ahora.toLocaleTimeString()}\n📍 https://www.google.com{lat},${lon}`;
+            const texto = `🛡️ REPORTE\n👤 ${window.nombre}\n🏢 ${unidad}\n🌙 Turno: ${turno}\n📅 ${ahora.toLocaleDateString()}\n⏰ ${ahora.toLocaleTimeString()}\n📍 https://www.google.com/maps?q=${lat},${lon}`;
 
-            await fetch(`https://api.telegram.org{TOKEN}/sendMessage`, {
+            // --- ENVIAR MENSAJE A TELEGRAM ---
+            await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
                 method: "POST",
-                headers: {"Content-Type":"application/json"},
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ chat_id: CHAT_ID, text: texto })
             });
 
+            // --- ENVIAR FOTO A TELEGRAM ---
             const formData = new FormData();
             formData.append("chat_id", CHAT_ID);
             formData.append("photo", file);
 
-            await fetch(`https://api.telegram.org{TOKEN}/sendPhoto`, {
+            await fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, {
                 method: "POST",
                 body: formData
             });
 
-            status.innerText = "✅ Reporte enviado con éxito";
+            // --- GUARDAR FOTO EN EL DISPOSITIVO ---
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(file);
+            a.download = `${window.nombre || 'reporte'}.jpg`;
+            a.click();
+
+            status.innerText = "✅ Reporte enviado y foto guardada";
         } catch (err) {
+            console.error(err);
             status.innerText = "❌ Error al enviar";
         }
     }, () => {
