@@ -35,13 +35,15 @@ button {
     font-size:16px;
 }
 
-input {
+input, select {
     margin:10px 0;
     width:100%;
+    padding:10px;
 }
 
 #status {
     margin-top:15px;
+    white-space:pre-line;
 }
 </style>
 </head>
@@ -51,6 +53,17 @@ input {
 <div class="container">
 <h2>🛡️ Reporte Guardia</h2>
 
+<input type="number" id="dni" placeholder="Ingrese su DNI" onkeyup="buscarDNI()">
+<p id="info"></p>
+
+<select id="unidad"></select>
+
+<select id="turno">
+<option value="">Seleccionar Turno</option>
+<option>Día</option>
+<option>Noche</option>
+</select>
+
 <input type="file" id="foto" accept="image/*" capture="camera">
 
 <button onclick="enviar()">Enviar Reporte</button>
@@ -59,13 +72,77 @@ input {
 </div>
 
 <script>
-// 🔥 SOLO CAMBIA TU TOKEN AQUÍ
+// 🔥 TOKEN TELEGRAM
 const TOKEN = "8205258404:AAGc5UfWSKRFyfKmQJaQr9ge4OO0bizZLMo";
 const CHAT_ID = "5580335835";
 
+// 🔥 PERSONAL (EDITAR AQUÍ)
+const personal = {
+  "12345678": { nombre: "Juan Perez", unidad: "Unidad A" },
+  "87654321": { nombre: "Pedro Lopez", unidad: "Unidad B" },
+  "11112222": { nombre: "Luis Torres", unidad: "Unidad C" }
+};
+
+// 🔥 UNIDADES (EDITAR AQUÍ)
+const unidades = [
+  "Unidad A",
+  "Unidad B",
+  "Unidad C",
+  "Unidad D"
+];
+
+// 🔄 CARGAR UNIDADES
+function cargarUnidades() {
+    const select = document.getElementById("unidad");
+
+    const op = document.createElement("option");
+    op.value = "";
+    op.textContent = "Seleccionar Unidad";
+    select.appendChild(op);
+
+    unidades.forEach(u => {
+        const option = document.createElement("option");
+        option.value = u;
+        option.textContent = u;
+        select.appendChild(option);
+    });
+}
+cargarUnidades();
+
+// 🔍 BUSCAR DNI
+function buscarDNI() {
+    const dni = document.getElementById("dni").value;
+
+    if (personal[dni]) {
+        const data = personal[dni];
+
+        document.getElementById("info").innerText =
+            `👤 ${data.nombre}\n🏢 Unidad habitual: ${data.unidad}`;
+
+        window.nombre = data.nombre;
+
+    } else {
+        document.getElementById("info").innerText = "❌ DNI no registrado";
+        window.nombre = null;
+    }
+}
+
+// 📤 ENVIAR
 async function enviar() {
+    const unidad = document.getElementById("unidad").value;
+    const turno = document.getElementById("turno").value;
     const fileInput = document.getElementById("foto");
     const status = document.getElementById("status");
+
+    if (!window.nombre) {
+        alert("DNI no válido");
+        return;
+    }
+
+    if (!unidad || !turno) {
+        alert("Seleccione unidad y turno");
+        return;
+    }
 
     if (fileInput.files.length === 0) {
         alert("Toma una foto");
@@ -76,20 +153,30 @@ async function enviar() {
 
     const file = fileInput.files[0];
 
+    // 💾 GUARDAR FOTO EN DISPOSITIVO
+    const url = URL.createObjectURL(file);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "reporte.jpg";
+    a.click();
+    URL.revokeObjectURL(url);
+
     navigator.geolocation.getCurrentPosition(async (pos) => {
 
         try {
             const lat = pos.coords.latitude;
             const lon = pos.coords.longitude;
-
             const ahora = new Date();
 
-            const texto = `🛡️ REPORTE GUARDIA
+            const texto = `🛡️ REPORTE
+👤 ${window.nombre}
+🏢 ${unidad}
+🌙 Turno: ${turno}
 📅 ${ahora.toLocaleDateString()}
 ⏰ ${ahora.toLocaleTimeString()}
 📍 https://www.google.com/maps?q=${lat},${lon}`;
 
-            // 📩 Enviar mensaje
+            // 📩 MENSAJE TELEGRAM
             await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
                 method: "POST",
                 headers: {"Content-Type":"application/json"},
@@ -99,7 +186,7 @@ async function enviar() {
                 })
             });
 
-            // 📷 Enviar foto
+            // 📷 FOTO TELEGRAM
             const formData = new FormData();
             formData.append("chat_id", CHAT_ID);
             formData.append("photo", file);
@@ -109,7 +196,7 @@ async function enviar() {
                 body: formData
             });
 
-            status.innerText = "✅ Enviado a Telegram";
+            status.innerText = "✅ Funcionando: enviado a Telegram y guardado";
 
         } catch (err) {
             console.error(err);
@@ -118,9 +205,6 @@ async function enviar() {
 
     }, () => {
         status.innerText = "❌ Activa el GPS";
-    }, {
-        enableHighAccuracy: true,
-        timeout: 10000
     });
 }
 </script>
