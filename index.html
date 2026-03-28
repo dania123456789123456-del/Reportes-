@@ -6,6 +6,7 @@
 <title>Reporte Guardia</title>
 
 <style>
+/* --- ANIMACIÓN DE FONDO --- */
 @keyframes moveGradient {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
@@ -23,6 +24,7 @@ body {
     align-items: center;
     min-height: 100vh;
     margin: 0;
+    color-scheme: dark;
 }
 
 .container {
@@ -37,9 +39,14 @@ body {
     backdrop-filter: blur(10px);
 }
 
-.logo-container { margin-bottom: 25px; }
-.logo-container img { max-width: 160px; height: auto; }
+.logo-container {
+    margin-bottom: 25px;
+}
+.logo-container img {
+    max-width: 160px;
+}
 
+/* --- INPUT Y SELECT DARK --- */
 input, select {
     margin: 12px 0;
     width: 100%;
@@ -51,6 +58,30 @@ input, select {
     font-weight: bold;
     box-sizing: border-box;
     font-size: 14px;
+    transition: 0.3s;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* Flecha personalizada para los select */
+select {
+    background-image: url("data:image/svg+xml;utf8,<svg fill='white' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 18px;
+    padding-right: 35px;
+}
+
+select option {
+    background-color: #1a1a1a;
+    color: white;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: #ff4d5a;
+    box-shadow: 0 0 12px rgba(230, 57, 70, 0.5);
 }
 
 #info {
@@ -61,6 +92,7 @@ input, select {
     font-weight: 800;
 }
 
+/* --- BOTÓN ENVIAR --- */
 button {
     padding: 16px;
     background: #e63946;
@@ -73,27 +105,39 @@ button {
     text-transform: uppercase;
     cursor: pointer;
     margin-top: 15px;
+    box-shadow: 0 0 15px rgba(230, 57, 70, 0.4);
 }
 
-.photo-btn {
+button:active {
+    transform: scale(0.98);
+}
+
+/* --- BOTÓN TOMAR FOTO --- */
+button.photo-btn {
     background: #222;
     border: 1px solid #444;
     margin-top: 10px;
     padding: 14px;
     border-radius: 10px;
-    color: white;
     font-weight: bold;
+    color: white;
+    cursor: pointer;
 }
 
+/* --- PREVISUALIZACIÓN FOTO --- */
 #preview {
-    margin-top: 15px;
+    margin-top: 10px;
     max-width: 100%;
     border-radius: 12px;
     display: none;
-    border: 2px solid #444;
 }
 
-#status { margin-top: 20px; font-size: 0.85em; color: #4ade80; }
+/* --- STATUS --- */
+#status {
+    margin-top: 20px;
+    font-size: 0.85em;
+    color: #4ade80;
+}
 </style>
 </head>
 
@@ -101,27 +145,28 @@ button {
 
 <div class="container">
     <div class="logo-container">
-        <img src="https://i.postimg.cc" alt="Logo">
+        <img src="https://i.postimg.cc/j5QtfmVH/Diseno-sin-titulo-20260328-033959-0000.png" alt="Logo">
     </div>
 
     <input type="number" id="dni" placeholder="INGRESE DNI" onkeyup="buscarDNI()">
+    
     <div id="info"></div>
 
     <select id="unidad"></select>
+
     <select id="turno">
         <option>Día</option>
         <option>Noche</option>
     </select>
 
-    <input type="file" id="foto" accept="image/*" capture="camera" hidden onchange="procesarFoto(event)">
+    <input type="file" id="foto" accept="image/*" capture="camera" hidden onchange="mostrarPreview(event)">
     <button type="button" class="photo-btn" onclick="document.getElementById('foto').click()">
         📸 TOMAR FOTO
     </button>
-    
-    <canvas id="canvas_aux" style="display:none;"></canvas>
-    <img id="preview" alt="Vista previa">
+    <img id="preview" alt="Previsualización foto">
 
     <button onclick="enviar()">ENVIAR REPORTE</button>
+
     <p id="status"></p>
 </div>
 
@@ -130,15 +175,16 @@ const TOKEN = "8205258404:AAGc5UfWSKRFyfKmQJaQr9ge4OO0bizZLMo";
 const CHAT_ID = "5580335835";
 
 const personal = {
-  "12345678": { nombre: "JUAN PEREZ" },
-  "87654321": { nombre: "PEDRO LOPEZ" },
-  "11112222": { nombre: "LUIS TORRES" }
+  "12345678": { nombre: "Juan Perez", unidad: "Unidad A" },
+  "87654321": { nombre: "Pedro Lopez", unidad: "Unidad B" },
+  "11112222": { nombre: "Luis Torres", unidad: "Unidad C" }
 };
 
 const unidades = ["Unidad A", "Unidad B", "Unidad C", "Unidad D"];
 
 function cargarUnidades() {
     const select = document.getElementById("unidad");
+    select.innerHTML = "";
     unidades.forEach(u => {
         const option = document.createElement("option");
         option.value = u; option.textContent = u;
@@ -150,119 +196,113 @@ cargarUnidades();
 function buscarDNI() {
     const dni = document.getElementById("dni").value;
     if (personal[dni]) {
-        document.getElementById("info").innerText = `👤 ${personal[dni].nombre}`;
-        window.nombre = personal[dni].nombre;
+        const data = personal[dni];
+        document.getElementById("info").innerText = `👤 ${data.nombre}`;
+        window.nombre = data.nombre;
     } else {
         document.getElementById("info").innerText = "";
         window.nombre = null;
     }
 }
 
-let fotoProcesadaBlob = null;
-let direccionGlobal = "Buscando dirección...";
+function mostrarPreview(event) {
+    const preview = document.getElementById('preview');
+    preview.src = URL.createObjectURL(event.target.files[0]);
+    preview.style.display = 'block';
+}
 
-async function procesarFoto(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const status = document.getElementById("status");
-    status.innerText = "⏳ Obteniendo ubicación y procesando...";
-
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-
-        try {
-            const res = await fetch(`https://nominatim.openstreetmap.org{lat}&lon=${lon}&format=json`);
-            const data = await res.json();
-            direccionGlobal = data.display_name.split(',').slice(0, 3).join(', ');
-        } catch (e) {
-            direccionGlobal = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-        }
-
-        const ahora = new Date();
-        const fechaHora = ahora.toLocaleString();
-
+// Función para poner texto sobre la imagen
+async function marcarImagen(file, textoOverlay) {
+    return new Promise((resolve) => {
         const img = new Image();
         img.src = URL.createObjectURL(file);
         img.onload = () => {
-            const canvas = document.getElementById('canvas_aux');
+            const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
             
-            canvas.width = 1000;
-            canvas.height = (img.height * 1000) / img.width;
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-            // Dibujar Mapa
-            const mapImg = new Image();
-            mapImg.crossOrigin = "anonymous";
-            mapImg.src = `https://static-maps.yandex.ru{lon},${lat}&size=250,250&z=16&l=map&pt=${lon},${lat},pm2rdm`;
+            ctx.drawImage(img, 0, 0);
             
-            mapImg.onload = () => {
-                ctx.fillStyle = "white";
-                ctx.fillRect(15, canvas.height - 235, 220, 220);
-                ctx.drawImage(mapImg, 20, canvas.height - 230, 210, 210);
+            // Estilo del texto
+            const fontSize = Math.floor(canvas.width / 25);
+            ctx.font = `bold ${fontSize}px Arial`;
+            ctx.fillStyle = "yellow";
+            ctx.shadowColor = "black";
+            ctx.shadowBlur = 7;
+            
+            // Posición (abajo a la derecha)
+            const margin = 20;
+            const lines = textoOverlay.split('\n');
+            lines.forEach((line, i) => {
+                ctx.fillText(line, margin, canvas.height - (lines.length - i) * (fontSize + 5));
+            });
 
-                // Dibujar Texto a la derecha
-                ctx.fillStyle = "white";
-                ctx.shadowColor = "black";
-                ctx.shadowBlur = 10;
-                ctx.font = "bold 26px Arial";
-                ctx.textAlign = "right";
-                
-                ctx.fillText(fechaHora, canvas.width - 20, canvas.height - 60);
-                ctx.font = "20px Arial";
-                ctx.fillText(direccionGlobal, canvas.width - 20, canvas.height - 30);
-
-                canvas.toBlob((blob) => {
-                    fotoProcesadaBlob = blob;
-                    const preview = document.getElementById('preview');
-                    preview.src = URL.createObjectURL(blob);
-                    preview.style.display = 'block';
-                    status.innerText = "✅ Foto lista para enviar";
-                }, 'image/jpeg', 0.8);
-            };
+            canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.8);
         };
-    }, () => {
-        status.innerText = "❌ Error: Activa el GPS";
-        alert("Es necesario el GPS para este reporte.");
     });
 }
 
 async function enviar() {
-    if (!window.nombre || !fotoProcesadaBlob) { 
-        alert("Por favor ingrese DNI válido y tome la foto."); 
-        return; 
-    }
-
-    const status = document.getElementById("status");
-    status.innerText = "🚀 Enviando a Telegram...";
-
     const unidad = document.getElementById("unidad").value;
     const turno = document.getElementById("turno").value;
-    const texto = `🛡️ REPORTE\n👤 ${window.nombre}\n🏢 ${unidad}\n🌙 Turno: ${turno}\n📍 ${direccionGlobal}`;
+    const fileInput = document.getElementById("foto");
+    const status = document.getElementById("status");
 
-    try {
-        await fetch(`https://api.telegram.org{TOKEN}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chat_id: CHAT_ID, text: texto })
-        });
+    if (!window.nombre) { alert("DNI no válido"); return; }
+    if (!unidad || !turno) { alert("Seleccione unidad y turno"); return; }
+    if (fileInput.files.length === 0) { alert("Toma una foto"); return; }
 
-        const formData = new FormData();
-        formData.append("chat_id", CHAT_ID);
-        formData.append("photo", fotoProcesadaBlob, "reporte.jpg");
+    status.innerText = "⏳ Procesando y enviando...";
+    const file = fileInput.files[0];
 
-        await fetch(`https://api.telegram.org{TOKEN}/sendPhoto`, {
-            method: "POST",
-            body: formData
-        });
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            const ahora = new Date();
+            const fechaStr = ahora.toLocaleDateString();
+            const horaStr = ahora.toLocaleTimeString();
+            
+            const infoSello = `FECHA: ${fechaStr}\nHORA: ${horaStr}\nLAT: ${lat}\nLON: ${lon}`;
+            const textoTelegram = `🛡️ REPORTE\n👤 ${window.nombre}\n🏢 ${unidad}\n🌙 Turno: ${turno}\n📅 ${fechaStr}\n⏰ ${horaStr}\n📍 https://www.google.com/maps?q=${lat},${lon}`;
 
-        status.innerText = "✅ Reporte enviado correctamente";
-    } catch (e) {
-        status.innerText = "❌ Error al enviar";
-    }
+            // Procesar imagen con sello
+            const fotoMarcadaBlob = await marcarImagen(file, infoSello);
+
+            // --- ENVIAR MENSAJE A TELEGRAM ---
+            await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id: CHAT_ID, text: textoTelegram })
+            });
+
+            // --- ENVIAR FOTO MARCADA A TELEGRAM ---
+            const formData = new FormData();
+            formData.append("chat_id", CHAT_ID);
+            formData.append("photo", fotoMarcadaBlob, "reporte.jpg");
+
+            await fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, {
+                method: "POST",
+                body: formData
+            });
+
+            // --- GUARDAR FOTO MARCADA EN EL DISPOSITIVO ---
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(fotoMarcadaBlob);
+            a.download = `${window.nombre || 'reporte'}_${fechaStr}.jpg`;
+            a.click();
+
+            status.innerText = "✅ Reporte enviado con éxito";
+        } catch (err) {
+            console.error(err);
+            status.innerText = "❌ Error al enviar";
+        }
+    }, () => {
+        status.innerText = "❌ Activa el GPS para enviar";
+    });
 }
 </script>
+
 </body>
 </html>
