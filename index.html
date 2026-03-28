@@ -6,23 +6,22 @@
     <title>SISTEMA DE REPORTE - SEGURIDAD</title>
     <style>
         :root { --primary: #007bff; --success: #28a745; --dark: #1a1a1b; }
-        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: var(--dark); color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .container { background: #2d2d2e; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 90%; max-width: 400px; text-align: center; border-top: 5px solid var(--primary); }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: var(--dark); color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .container { background: #2d2d2e; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 400px; text-align: center; border-top: 5px solid var(--primary); }
         h1 { font-size: 20px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px; color: var(--primary); }
         p { color: #aaa; font-size: 14px; margin-bottom: 25px; }
-        .upload-area { border: 2px dashed #444; border-radius: 15px; padding: 20px; margin-bottom: 20px; transition: 0.3s; }
+        .upload-area { border: 2px dashed #444; border-radius: 15px; padding: 20px; margin-bottom: 20px; }
         input[type="file"] { width: 100%; color: #aaa; margin-top: 10px; }
-        .btn { background: var(--primary); color: white; border: none; padding: 18px; border-radius: 12px; cursor: pointer; font-size: 16px; width: 100%; font-weight: bold; text-transform: uppercase; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,123,255,0.3); }
-        .btn:active { transform: scale(0.98); background: #0056b3; }
+        .btn { background: var(--primary); color: white; border: none; padding: 18px; border-radius: 12px; cursor: pointer; font-size: 16px; width: 100%; font-weight: bold; text-transform: uppercase; transition: 0.3s; }
+        .btn:disabled { background: #555; cursor: not-allowed; }
         #status { margin-top: 25px; padding: 15px; border-radius: 8px; font-size: 14px; background: rgba(255,255,255,0.05); display: none; }
-        .badge { background: #444; padding: 4px 10px; border-radius: 20px; font-size: 11px; vertical-align: middle; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>🛡️ Reporte Guardia</h1>
-    <p>Control de patrullaje <span class="badge">V1.0</span></p>
+    <p>Control de patrullaje a Excel</p>
     
     <div class="upload-area">
         <label style="display:block; margin-bottom:10px;">Capturar Evidencia:</label>
@@ -34,23 +33,10 @@
     <div id="status"></div>
 </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyAMaspap4-SkY9EywZXAnQWwbzKGs_1oKI",
-        authDomain: "reportes-personal.firebaseapp.com",
-        projectId: "reportes-personal",
-        storageBucket: "reportes-personal.firebasestorage.app",
-        messagingSenderId: "924805862598",
-        appId: "1:924805862598:web:c256fd54dda444a1eb33c7"
-    };
-
+<script>
+    // Tu URL de Google Apps Script recién generada
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfkG3cWi1bEsUzrGEPsQEefmonp_KzUv6f-9SmGtMfKzG6kda699tp_bu3NBJqC7iR3A/exec";
     const IMGBB_API_KEY = "116dcfe2c6a32c3b9d6b5a710170e69a";
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
 
     const btn = document.getElementById('btnEnviar');
     const statusDiv = document.getElementById('status');
@@ -60,9 +46,9 @@
         if (fileInput.files.length === 0) return alert("⚠️ Debe tomar una foto para el reporte.");
 
         btn.disabled = true;
-        btn.innerText = "PROCESANDO...";
+        btn.innerText = "ENVIANDO...";
         statusDiv.style.display = "block";
-        statusDiv.innerHTML = "⏳ Obteniendo GPS y subiendo imagen...";
+        statusDiv.innerHTML = "⏳ Subiendo imagen y GPS...";
         statusDiv.style.color = "#aaa";
 
         navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -80,9 +66,9 @@
                 if (!dataImg.success) throw new Error("Error en imagen");
                 const linkFoto = dataImg.data.url;
 
-                // 2. Guardar en Firestore
+                // 2. Preparar datos
                 const ahora = new Date();
-                await addDoc(collection(db, "reportes_personal"), {
+                const datos = {
                     fecha: ahora.toLocaleDateString('es-ES'),
                     hora: ahora.toLocaleTimeString('es-ES'),
                     latitud: pos.coords.latitude,
@@ -90,16 +76,23 @@
                     mapa_link: `https://www.google.com{pos.coords.latitude},${pos.coords.longitude}`,
                     foto_url: linkFoto,
                     dispositivo: navigator.userAgent.substring(0, 50)
+                };
+
+                // 3. Enviar a Google Sheets
+                await fetch(SCRIPT_URL, {
+                    method: "POST",
+                    mode: "no-cors", 
+                    body: JSON.stringify(datos)
                 });
 
-                statusDiv.innerHTML = "✅ ENVIADO EXITOSAMENTE<br><small>Ubicación y foto registradas</small>";
+                statusDiv.innerHTML = "✅ REPORTE GUARDADO EN EXCEL<br><small>Revisa tu hoja de cálculo</small>";
                 statusDiv.style.color = "#28a745";
                 fileInput.value = "";
                 btn.innerText = "ENVIAR NUEVO REPORTE";
                 btn.disabled = false;
                 
             } catch (err) {
-                statusDiv.innerHTML = "❌ Error en el envío. Verifique conexión.";
+                statusDiv.innerHTML = "❌ Error en el envío. Intente de nuevo.";
                 statusDiv.style.color = "#ff4d4d";
                 btn.disabled = false;
                 btn.innerText = "REINTENTAR";
