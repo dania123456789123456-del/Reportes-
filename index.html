@@ -34,7 +34,6 @@
 </div>
 
 <script>
-    // Tu URL de Google Apps Script recién generada
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfkG3cWi1bEsUzrGEPsQEefmonp_KzUv6f-9SmGtMfKzG6kda699tp_bu3NBJqC7iR3A/exec";
     const IMGBB_API_KEY = "116dcfe2c6a32c3b9d6b5a710170e69a";
 
@@ -53,12 +52,11 @@
 
         navigator.geolocation.getCurrentPosition(async (pos) => {
             try {
-                // 1. Subir a ImgBB
+                // 1. Subir a ImgBB (Corregido)
                 const formData = new FormData();
                 formData.append("image", fileInput.files[0]);
 
-                const resImg = await fetch(`https://api.imgbb.com{IMGBB_API_KEY}`
-, {
+                const resImg = await fetch(`https://api.imgbb.com{IMGBB_API_KEY}`, {
                     method: "POST",
                     body: formData
                 });
@@ -93,6 +91,7 @@
                 btn.disabled = false;
                 
             } catch (err) {
+                console.error(err);
                 statusDiv.innerHTML = "❌ Error en el envío. Intente de nuevo.";
                 statusDiv.style.color = "#ff4d4d";
                 btn.disabled = false;
