@@ -145,7 +145,6 @@ button.photo-btn {
 
 <div class="container">
     <div class="logo-container">
-        <!-- CAMBIA EL LOGO AQUÍ -->
         <img src="https://i.postimg.cc/j5QtfmVH/Diseno-sin-titulo-20260328-033959-0000.png" alt="Logo">
     </div>
 
@@ -160,7 +159,6 @@ button.photo-btn {
         <option>Noche</option>
     </select>
 
-    <!-- BOTÓN TOMAR FOTO -->
     <input type="file" id="foto" accept="image/*" capture="camera" hidden onchange="mostrarPreview(event)">
     <button type="button" class="photo-btn" onclick="document.getElementById('foto').click()">
         📸 TOMAR FOTO
@@ -207,14 +205,44 @@ function buscarDNI() {
     }
 }
 
-// --- MOSTRAR PREVISUALIZACIÓN FOTO ---
 function mostrarPreview(event) {
     const preview = document.getElementById('preview');
     preview.src = URL.createObjectURL(event.target.files[0]);
     preview.style.display = 'block';
 }
 
-// --- ENVIAR REPORTE ---
+// Función para poner texto sobre la imagen
+async function marcarImagen(file, textoOverlay) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            
+            ctx.drawImage(img, 0, 0);
+            
+            // Estilo del texto
+            const fontSize = Math.floor(canvas.width / 25);
+            ctx.font = `bold ${fontSize}px Arial`;
+            ctx.fillStyle = "yellow";
+            ctx.shadowColor = "black";
+            ctx.shadowBlur = 7;
+            
+            // Posición (abajo a la derecha)
+            const margin = 20;
+            const lines = textoOverlay.split('\n');
+            lines.forEach((line, i) => {
+                ctx.fillText(line, margin, canvas.height - (lines.length - i) * (fontSize + 5));
+            });
+
+            canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.8);
+        };
+    });
+}
+
 async function enviar() {
     const unidad = document.getElementById("unidad").value;
     const turno = document.getElementById("turno").value;
@@ -225,7 +253,7 @@ async function enviar() {
     if (!unidad || !turno) { alert("Seleccione unidad y turno"); return; }
     if (fileInput.files.length === 0) { alert("Toma una foto"); return; }
 
-    status.innerText = "⏳ Enviando...";
+    status.innerText = "⏳ Procesando y enviando...";
     const file = fileInput.files[0];
 
     navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -233,38 +261,45 @@ async function enviar() {
             const lat = pos.coords.latitude;
             const lon = pos.coords.longitude;
             const ahora = new Date();
-            const texto = `🛡️ REPORTE\n👤 ${window.nombre}\n🏢 ${unidad}\n🌙 Turno: ${turno}\n📅 ${ahora.toLocaleDateString()}\n⏰ ${ahora.toLocaleTimeString()}\n📍 https://www.google.com/maps?q=${lat},${lon}`;
+            const fechaStr = ahora.toLocaleDateString();
+            const horaStr = ahora.toLocaleTimeString();
+            
+            const infoSello = `FECHA: ${fechaStr}\nHORA: ${horaStr}\nLAT: ${lat}\nLON: ${lon}`;
+            const textoTelegram = `🛡️ REPORTE\n👤 ${window.nombre}\n🏢 ${unidad}\n🌙 Turno: ${turno}\n📅 ${fechaStr}\n⏰ ${horaStr}\n📍 https://www.google.com/maps?q=${lat},${lon}`;
+
+            // Procesar imagen con sello
+            const fotoMarcadaBlob = await marcarImagen(file, infoSello);
 
             // --- ENVIAR MENSAJE A TELEGRAM ---
             await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ chat_id: CHAT_ID, text: texto })
+                body: JSON.stringify({ chat_id: CHAT_ID, text: textoTelegram })
             });
 
-            // --- ENVIAR FOTO A TELEGRAM ---
+            // --- ENVIAR FOTO MARCADA A TELEGRAM ---
             const formData = new FormData();
             formData.append("chat_id", CHAT_ID);
-            formData.append("photo", file);
+            formData.append("photo", fotoMarcadaBlob, "reporte.jpg");
 
             await fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, {
                 method: "POST",
                 body: formData
             });
 
-            // --- GUARDAR FOTO EN EL DISPOSITIVO ---
+            // --- GUARDAR FOTO MARCADA EN EL DISPOSITIVO ---
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(file);
-            a.download = `${window.nombre || 'reporte'}.jpg`;
+            a.href = URL.createObjectURL(fotoMarcadaBlob);
+            a.download = `${window.nombre || 'reporte'}_${fechaStr}.jpg`;
             a.click();
 
-            status.innerText = "✅ Reporte enviado y foto guardada";
+            status.innerText = "✅ Reporte enviado con éxito";
         } catch (err) {
             console.error(err);
             status.innerText = "❌ Error al enviar";
         }
     }, () => {
-        status.innerText = "❌ Activa el GPS";
+        status.innerText = "❌ Activa el GPS para enviar";
     });
 }
 </script>
