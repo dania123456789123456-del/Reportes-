@@ -6,44 +6,138 @@
 <title>Reporte Guardia</title>
 
 <style>
+/* --- ANIMACIÓN DE FONDO --- */
+@keyframes moveGradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
 body {
-    background:#1a1a1b;
-    color:white;
-    font-family:sans-serif;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    height:100vh;
-    margin:0;
+    background: linear-gradient(-45deg, #050505, #1a0000, #0f0f0f, #2a0000);
+    background-size: 400% 400%;
+    animation: moveGradient 15s ease infinite;
+    color: #f0f0f0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    color-scheme: dark;
 }
 
 .container {
-    background:#2d2d2e;
-    padding:20px;
-    border-radius:15px;
-    text-align:center;
-    width:300px;
+    background: rgba(18, 18, 18, 0.95);
+    padding: 30px;
+    border-radius: 20px;
+    text-align: center;
+    width: 320px;
+    box-shadow: 0 0 30px rgba(230, 57, 70, 0.2);
+    border: 1px solid #331111;
+    border-top: 6px solid #e63946;
+    backdrop-filter: blur(10px);
 }
 
-button {
-    padding:15px;
-    background:#007bff;
-    color:white;
-    border:none;
-    border-radius:10px;
-    width:100%;
-    font-size:16px;
+.logo-container {
+    margin-bottom: 25px;
+}
+.logo-container img {
+    max-width: 160px;
 }
 
+/* --- INPUT Y SELECT DARK --- */
 input, select {
-    margin:10px 0;
-    width:100%;
-    padding:10px;
+    margin: 12px 0;
+    width: 100%;
+    padding: 14px;
+    background-color: #1e1e1e !important;
+    border: 1px solid #444;
+    border-radius: 10px;
+    color: #ffffff !important;
+    font-weight: bold;
+    box-sizing: border-box;
+    font-size: 14px;
+    transition: 0.3s;
+
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
 }
 
+/* Flecha personalizada para los select */
+select {
+    background-image: url("data:image/svg+xml;utf8,<svg fill='white' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 18px;
+    padding-right: 35px;
+}
+
+select option {
+    background-color: #1a1a1a;
+    color: white;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: #ff4d5a;
+    box-shadow: 0 0 12px rgba(230, 57, 70, 0.5);
+}
+
+#info {
+    font-size: 1.1em;
+    color: #e63946;
+    margin: 10px 0 20px 0;
+    text-transform: uppercase;
+    font-weight: 800;
+}
+
+/* --- BOTÓN ENVIAR --- */
+button {
+    padding: 16px;
+    background: #e63946;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    width: 100%;
+    font-size: 16px;
+    font-weight: 900;
+    text-transform: uppercase;
+    cursor: pointer;
+    margin-top: 15px;
+    box-shadow: 0 0 15px rgba(230, 57, 70, 0.4);
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+/* --- BOTÓN TOMAR FOTO --- */
+button.photo-btn {
+    background: #222;
+    border: 1px solid #444;
+    margin-top: 10px;
+    padding: 14px;
+    border-radius: 10px;
+    font-weight: bold;
+    color: white;
+    cursor: pointer;
+}
+
+/* --- PREVISUALIZACIÓN FOTO --- */
+#preview {
+    margin-top: 10px;
+    max-width: 100%;
+    border-radius: 12px;
+    display: none;
+}
+
+/* --- STATUS --- */
 #status {
-    margin-top:15px;
-    white-space:pre-line;
+    margin-top: 20px;
+    font-size: 0.85em;
+    color: #4ade80;
 }
 </style>
 </head>
@@ -51,158 +145,115 @@ input, select {
 <body>
 
 <div class="container">
-<h2>🛡️ Reporte Guardia</h2>
+    <div class="logo-container">
+        <!-- CAMBIA EL LOGO AQUÍ -->
+        <img src="TU_LINK_DE_LOGOTIPO" alt="Logo">
+    </div>
 
-<input type="number" id="dni" placeholder="Ingrese su DNI" onkeyup="buscarDNI()">
-<p id="info"></p>
+    <input type="number" id="dni" placeholder="INGRESE DNI" onkeyup="buscarDNI()">
+    
+    <div id="info"></div>
 
-<select id="unidad"></select>
+    <select id="unidad"></select>
 
-<select id="turno">
-<option value="">Seleccionar Turno</option>
-<option>Día</option>
-<option>Noche</option>
-</select>
+    <select id="turno">
+        <option>Día</option>
+        <option>Noche</option>
+    </select>
 
-<input type="file" id="foto" accept="image/*" capture="camera">
+    <!-- BOTÓN TOMAR FOTO -->
+    <input type="file" id="foto" accept="image/*" capture="camera" hidden onchange="mostrarPreview(event)">
+    <button type="button" class="photo-btn" onclick="document.getElementById('foto').click()">
+        📸 TOMAR FOTO
+    </button>
+    <img id="preview" alt="Previsualización foto">
 
-<button onclick="enviar()">Enviar Reporte</button>
+    <button onclick="enviar()">ENVIAR REPORTE</button>
 
-<p id="status"></p>
+    <p id="status"></p>
 </div>
 
 <script>
-// 🔥 TOKEN TELEGRAM
 const TOKEN = "8205258404:AAGc5UfWSKRFyfKmQJaQr9ge4OO0bizZLMo";
 const CHAT_ID = "5580335835";
 
-// 🔥 PERSONAL (EDITAR AQUÍ)
 const personal = {
   "12345678": { nombre: "Juan Perez", unidad: "Unidad A" },
   "87654321": { nombre: "Pedro Lopez", unidad: "Unidad B" },
   "11112222": { nombre: "Luis Torres", unidad: "Unidad C" }
 };
 
-// 🔥 UNIDADES (EDITAR AQUÍ)
-const unidades = [
-  "Unidad A",
-  "Unidad B",
-  "Unidad C",
-  "Unidad D"
-];
+const unidades = ["Unidad A", "Unidad B", "Unidad C", "Unidad D"];
 
-// 🔄 CARGAR UNIDADES
 function cargarUnidades() {
     const select = document.getElementById("unidad");
-
-    const op = document.createElement("option");
-    op.value = "";
-    op.textContent = "Seleccionar Unidad";
-    select.appendChild(op);
-
+    select.innerHTML = "";
     unidades.forEach(u => {
         const option = document.createElement("option");
-        option.value = u;
-        option.textContent = u;
+        option.value = u; option.textContent = u;
         select.appendChild(option);
     });
 }
 cargarUnidades();
 
-// 🔍 BUSCAR DNI
 function buscarDNI() {
     const dni = document.getElementById("dni").value;
-
     if (personal[dni]) {
         const data = personal[dni];
-
-        document.getElementById("info").innerText =
-            `👤 ${data.nombre}\n🏢 Unidad habitual: ${data.unidad}`;
-
+        document.getElementById("info").innerText = `👤 ${data.nombre}`;
         window.nombre = data.nombre;
-
     } else {
-        document.getElementById("info").innerText = "❌ DNI no registrado";
+        document.getElementById("info").innerText = "";
         window.nombre = null;
     }
 }
 
-// 📤 ENVIAR
+// --- MOSTRAR PREVISUALIZACIÓN FOTO ---
+function mostrarPreview(event) {
+    const preview = document.getElementById('preview');
+    preview.src = URL.createObjectURL(event.target.files[0]);
+    preview.style.display = 'block';
+}
+
 async function enviar() {
     const unidad = document.getElementById("unidad").value;
     const turno = document.getElementById("turno").value;
     const fileInput = document.getElementById("foto");
     const status = document.getElementById("status");
 
-    if (!window.nombre) {
-        alert("DNI no válido");
-        return;
-    }
-
-    if (!unidad || !turno) {
-        alert("Seleccione unidad y turno");
-        return;
-    }
-
-    if (fileInput.files.length === 0) {
-        alert("Toma una foto");
-        return;
-    }
+    if (!window.nombre) { alert("DNI no válido"); return; }
+    if (!unidad || !turno) { alert("Seleccione unidad y turno"); return; }
+    if (fileInput.files.length === 0) { alert("Toma una foto"); return; }
 
     status.innerText = "⏳ Enviando...";
-
     const file = fileInput.files[0];
 
-    // 💾 GUARDAR FOTO EN DISPOSITIVO
-    const url = URL.createObjectURL(file);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "reporte.jpg";
-    a.click();
-    URL.revokeObjectURL(url);
-
     navigator.geolocation.getCurrentPosition(async (pos) => {
-
         try {
             const lat = pos.coords.latitude;
             const lon = pos.coords.longitude;
             const ahora = new Date();
+            const texto = `🛡️ REPORTE\n👤 ${window.nombre}\n🏢 ${unidad}\n🌙 Turno: ${turno}\n📅 ${ahora.toLocaleDateString()}\n⏰ ${ahora.toLocaleTimeString()}\n📍 https://www.google.com{lat},${lon}`;
 
-            const texto = `🛡️ REPORTE
-👤 ${window.nombre}
-🏢 ${unidad}
-🌙 Turno: ${turno}
-📅 ${ahora.toLocaleDateString()}
-⏰ ${ahora.toLocaleTimeString()}
-📍 https://www.google.com/maps?q=${lat},${lon}`;
-
-            // 📩 MENSAJE TELEGRAM
-            await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
+            await fetch(`https://api.telegram.org{TOKEN}/sendMessage`, {
                 method: "POST",
                 headers: {"Content-Type":"application/json"},
-                body: JSON.stringify({
-                    chat_id: CHAT_ID,
-                    text: texto
-                })
+                body: JSON.stringify({ chat_id: CHAT_ID, text: texto })
             });
 
-            // 📷 FOTO TELEGRAM
             const formData = new FormData();
             formData.append("chat_id", CHAT_ID);
             formData.append("photo", file);
 
-            await fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, {
+            await fetch(`https://api.telegram.org{TOKEN}/sendPhoto`, {
                 method: "POST",
                 body: formData
             });
 
-            status.innerText = "✅ Funcionando: enviado a Telegram y guardado";
-
+            status.innerText = "✅ Reporte enviado con éxito";
         } catch (err) {
-            console.error(err);
             status.innerText = "❌ Error al enviar";
         }
-
     }, () => {
         status.innerText = "❌ Activa el GPS";
     });
