@@ -3,51 +3,45 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SISTEMA DE REPORTE - SEGURIDAD</title>
+<title>Reporte Guardia</title>
 
 <style>
-:root { --primary:#007bff; --success:#28a745; --dark:#1a1a1b; }
-
 body {
-    font-family:'Segoe UI',Roboto,sans-serif;
-    background:var(--dark);
+    background:#1a1a1b;
     color:white;
+    font-family:sans-serif;
     display:flex;
     justify-content:center;
     align-items:center;
-    min-height:100vh;
+    height:100vh;
     margin:0;
 }
 
 .container {
     background:#2d2d2e;
-    padding:30px;
-    border-radius:20px;
-    width:100%;
-    max-width:400px;
-    text-align:center;
-}
-
-.upload-area {
-    border:2px dashed #444;
-    border-radius:15px;
     padding:20px;
-    margin-bottom:20px;
+    border-radius:15px;
+    text-align:center;
+    width:300px;
 }
 
-.btn {
-    background:var(--primary);
+button {
+    padding:15px;
+    background:#007bff;
     color:white;
     border:none;
-    padding:18px;
-    border-radius:12px;
+    border-radius:10px;
+    width:100%;
+    font-size:16px;
+}
+
+input {
+    margin:10px 0;
     width:100%;
 }
 
 #status {
-    margin-top:20px;
-    padding:10px;
-    display:none;
+    margin-top:15px;
 }
 </style>
 </head>
@@ -55,120 +49,80 @@ body {
 <body>
 
 <div class="container">
-    <h2>🛡️ Reporte Guardia</h2>
+<h2>🛡️ Reporte Guardia</h2>
 
-    <div class="upload-area">
-        <input type="file" id="fotoInput" accept="image/*" capture="camera">
-    </div>
+<input type="file" id="foto" accept="image/*" capture="camera">
 
-    <button id="btnEnviar" class="btn">Enviar Reporte</button>
+<button onclick="enviar()">Enviar Reporte</button>
 
-    <div id="status"></div>
+<p id="status"></p>
 </div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby6m13mLSWEXEdKsg4CFSIVKY5mqiJF6FoBZ118efn16zSxrhkqIoK2ge6iuHm5gIzNRw/exec";
+// 🔥 SOLO CAMBIA TU TOKEN AQUÍ
+const TOKEN = "8205258404:AAGc5UfWSKRFyfKmQJaQr9ge4OO0bizZLMo";
+const CHAT_ID = "5580335835";
 
-const btn = document.getElementById('btnEnviar');
-const statusDiv = document.getElementById('status');
-
-btn.addEventListener('click', async () => {
-
-    const fileInput = document.getElementById('fotoInput');
+async function enviar() {
+    const fileInput = document.getElementById("foto");
+    const status = document.getElementById("status");
 
     if (fileInput.files.length === 0) {
-        alert("⚠️ Debe tomar una foto");
+        alert("Toma una foto");
         return;
     }
 
-    btn.disabled = true;
-    btn.innerText = "ENVIANDO...";
-    statusDiv.style.display = "block";
-    statusDiv.innerHTML = "⏳ Procesando...";
-    statusDiv.style.color = "#aaa";
+    status.innerText = "⏳ Enviando...";
 
-    try {
-        const file = fileInput.files[0];
+    const file = fileInput.files[0];
 
-        // 📷 Convertir a Base64
-        const base64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result.split(',')[1]);
-            reader.onerror = reject;
-        });
+    navigator.geolocation.getCurrentPosition(async (pos) => {
 
-        // 📍 GPS con timeout
-        navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
 
-            try {
-                const ahora = new Date();
+            const ahora = new Date();
 
-                const datos = {
-                    fecha: ahora.toLocaleDateString(),
-                    hora: ahora.toLocaleTimeString(),
-                    latitud: pos.coords.latitude,
-                    longitud: pos.coords.longitude,
-                    mapa_link: `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`,
-                    foto_base64: base64,
-                    nombre_archivo: file.name,
-                    dispositivo: navigator.userAgent
-                };
+            const texto = `🛡️ REPORTE GUARDIA
+📅 ${ahora.toLocaleDateString()}
+⏰ ${ahora.toLocaleTimeString()}
+📍 https://www.google.com/maps?q=${lat},${lon}`;
 
-                const respuesta = await fetch(SCRIPT_URL, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(datos)
-                });
+            // 📩 Enviar mensaje
+            await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
+                method: "POST",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: texto
+                })
+            });
 
-                const texto = await respuesta.text();
-                console.log("RESPUESTA:", texto);
+            // 📷 Enviar foto
+            const formData = new FormData();
+            formData.append("chat_id", CHAT_ID);
+            formData.append("photo", file);
 
-                if (!texto.includes("ok")) {
-                    throw new Error("Error en servidor");
-                }
+            await fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, {
+                method: "POST",
+                body: formData
+            });
 
-                statusDiv.innerHTML = "✅ REPORTE GUARDADO";
-                statusDiv.style.color = "#28a745";
+            status.innerText = "✅ Enviado a Telegram";
 
-                fileInput.value = "";
+        } catch (err) {
+            console.error(err);
+            status.innerText = "❌ Error al enviar";
+        }
 
-            } catch (err) {
-                console.error(err);
-                statusDiv.innerHTML = "❌ Error al enviar datos";
-                statusDiv.style.color = "red";
-            }
-
-            btn.disabled = false;
-            btn.innerText = "ENVIAR NUEVO REPORTE";
-
-        }, (error) => {
-
-            console.error("GPS ERROR:", error);
-
-            statusDiv.innerHTML = "❌ Error de GPS o permiso denegado";
-            statusDiv.style.color = "red";
-
-            btn.disabled = false;
-            btn.innerText = "REINTENTAR";
-
-        }, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-        });
-
-    } catch (err) {
-        console.error(err);
-        statusDiv.innerHTML = "❌ Error procesando imagen";
-        statusDiv.style.color = "red";
-
-        btn.disabled = false;
-        btn.innerText = "REINTENTAR";
-    }
-});
+    }, () => {
+        status.innerText = "❌ Activa el GPS";
+    }, {
+        enableHighAccuracy: true,
+        timeout: 10000
+    });
+}
 </script>
 
 </body>
