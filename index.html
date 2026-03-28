@@ -1,82 +1,67 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SISTEMA DE REPORTE - SEGURIDAD</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SISTEMA DE REPORTE - SEGURIDAD</title>
 
-    <style>
-        :root { --primary: #007bff; --success: #28a745; --dark: #1a1a1b; }
+<style>
+:root { --primary:#007bff; --success:#28a745; --dark:#1a1a1b; }
 
-        body {
-            font-family: 'Segoe UI', Roboto, sans-serif;
-            background-color: var(--dark);
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-        }
+body {
+    font-family:'Segoe UI',Roboto,sans-serif;
+    background:var(--dark);
+    color:white;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    margin:0;
+}
 
-        .container {
-            background: #2d2d2e;
-            padding: 30px;
-            border-radius: 20px;
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-            border-top: 5px solid var(--primary);
-        }
+.container {
+    background:#2d2d2e;
+    padding:30px;
+    border-radius:20px;
+    width:100%;
+    max-width:400px;
+    text-align:center;
+}
 
-        h1 {
-            font-size: 20px;
-            color: var(--primary);
-        }
+.upload-area {
+    border:2px dashed #444;
+    border-radius:15px;
+    padding:20px;
+    margin-bottom:20px;
+}
 
-        .upload-area {
-            border: 2px dashed #444;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
+.btn {
+    background:var(--primary);
+    color:white;
+    border:none;
+    padding:18px;
+    border-radius:12px;
+    width:100%;
+}
 
-        input[type="file"] {
-            width: 100%;
-            margin-top: 10px;
-        }
-
-        .btn {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 18px;
-            border-radius: 12px;
-            width: 100%;
-            font-weight: bold;
-        }
-
-        #status {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 8px;
-            display: none;
-        }
-    </style>
+#status {
+    margin-top:20px;
+    padding:10px;
+    display:none;
+}
+</style>
 </head>
 
 <body>
 
 <div class="container">
-    <h1>🛡️ Reporte Guardia</h1>
+    <h2>🛡️ Reporte Guardia</h2>
 
     <div class="upload-area">
-        <label>Capturar Evidencia:</label>
         <input type="file" id="fotoInput" accept="image/*" capture="camera">
     </div>
 
-    <button id="btnEnviar" class="btn">Confirmar y Enviar</button>
+    <button id="btnEnviar" class="btn">Enviar Reporte</button>
 
     <div id="status"></div>
 </div>
@@ -105,62 +90,81 @@ btn.addEventListener('click', async () => {
     try {
         const file = fileInput.files[0];
 
-        // 📷 convertir a base64
+        // 📷 Convertir a Base64
         const base64 = await new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = () => resolve(reader.result.split(',')[1]);
-            reader.onerror = error => reject(error);
+            reader.onerror = reject;
         });
 
-        // 📍 GPS
+        // 📍 GPS con timeout
         navigator.geolocation.getCurrentPosition(async (pos) => {
 
-            const ahora = new Date();
+            try {
+                const ahora = new Date();
 
-            const datos = {
-                fecha: ahora.toLocaleDateString(),
-                hora: ahora.toLocaleTimeString(),
-                latitud: pos.coords.latitude,
-                longitud: pos.coords.longitude,
-                mapa_link: `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`,
-                foto_base64: base64,
-                nombre_archivo: file.name,
-                dispositivo: navigator.userAgent
-            };
+                const datos = {
+                    fecha: ahora.toLocaleDateString(),
+                    hora: ahora.toLocaleTimeString(),
+                    latitud: pos.coords.latitude,
+                    longitud: pos.coords.longitude,
+                    mapa_link: `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`,
+                    foto_base64: base64,
+                    nombre_archivo: file.name,
+                    dispositivo: navigator.userAgent
+                };
 
-            const respuesta = await fetch(SCRIPT_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(datos)
-            });
+                const respuesta = await fetch(SCRIPT_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(datos)
+                });
 
-            const texto = await respuesta.text();
-            console.log("RESPUESTA:", texto);
+                const texto = await respuesta.text();
+                console.log("RESPUESTA:", texto);
 
-            if (!texto.includes("ok")) {
-                throw new Error("Error en servidor");
+                if (!texto.includes("ok")) {
+                    throw new Error("Error en servidor");
+                }
+
+                statusDiv.innerHTML = "✅ REPORTE GUARDADO";
+                statusDiv.style.color = "#28a745";
+
+                fileInput.value = "";
+
+            } catch (err) {
+                console.error(err);
+                statusDiv.innerHTML = "❌ Error al enviar datos";
+                statusDiv.style.color = "red";
             }
 
-            statusDiv.innerHTML = "✅ REPORTE GUARDADO EN EXCEL";
-            statusDiv.style.color = "#28a745";
-
-            fileInput.value = "";
+            btn.disabled = false;
             btn.innerText = "ENVIAR NUEVO REPORTE";
-            btn.disabled = false;
 
-        }, () => {
-            statusDiv.innerHTML = "❌ Activa el GPS";
+        }, (error) => {
+
+            console.error("GPS ERROR:", error);
+
+            statusDiv.innerHTML = "❌ Error de GPS o permiso denegado";
             statusDiv.style.color = "red";
+
             btn.disabled = false;
+            btn.innerText = "REINTENTAR";
+
+        }, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
         });
 
     } catch (err) {
         console.error(err);
-        statusDiv.innerHTML = "❌ Error real en el envío";
+        statusDiv.innerHTML = "❌ Error procesando imagen";
         statusDiv.style.color = "red";
+
         btn.disabled = false;
         btn.innerText = "REINTENTAR";
     }
