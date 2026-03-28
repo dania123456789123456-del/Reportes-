@@ -42,8 +42,8 @@ button.photo-btn{background:#222;border:1px solid #444;margin-top:10px;padding:1
 <script>
 const TOKEN="8205258404:AAGc5UfWSKRFyfKmQJaQr9ge4OO0bizZLMo";
 const CHAT_ID="5580335835";
-const personal={"12345678":{nombre:"Juan Perez",unidad:"Unidad A"},"87654321":{nombre:"Pedro Lopez",unidad:"Unidad B"},"11112222":{nombre:"Luis Torres",unidad:"Unidad C"}};
-const unidades=["Unidad A","Unidad B","Unidad C","Unidad D"];
+const personal={"12345678":{nombre:"Juan Perez",unidad:"Unidad A"},"46973364":{nombre:"Gaby Rodriguez",unidad:"Unidad B"},"75445493":{nombre:"Juan Sánchez",unidad:"Unidad C"}};
+const unidades=["APN","DERRAMA MAGISTERIAL","PROGRAMA CONTIGO","OBRA EL GOLF"];
 function cargarUnidades(){const s=document.getElementById("unidad");s.innerHTML="";unidades.forEach(u=>{const o=document.createElement("option");o.value=u;o.textContent=u;s.appendChild(o);});}
 cargarUnidades();
 function buscarDNI(){const d=document.getElementById("dni").value;if(personal[d]){document.getElementById("info").innerText=`👤 ${personal[d].nombre}`;window.nombre=personal[d].nombre;}else{document.getElementById("info").innerText="";window.nombre=null;}}
