@@ -46,7 +46,6 @@ body {
     max-width: 160px;
 }
 
-/* --- INPUT Y SELECT DARK --- */
 input, select {
     margin: 12px 0;
     width: 100%;
@@ -64,19 +63,15 @@ input, select {
     appearance: none;
 }
 
-/* Flecha personalizada para los select */
 select {
-    background-image: url("data:image/svg+xml;utf8,<svg fill='white' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+    background-image: url("data:image/svg+xml;utf8,<svg fill='white' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org'><path d='M7 10l5 5 5-5z'/></svg>");
     background-repeat: no-repeat;
     background-position: right 10px center;
     background-size: 18px;
     padding-right: 35px;
 }
 
-select option {
-    background-color: #1a1a1a;
-    color: white;
-}
+select option { background-color: #1a1a1a; color: white; }
 
 input:focus, select:focus {
     outline: none;
@@ -92,7 +87,6 @@ input:focus, select:focus {
     font-weight: 800;
 }
 
-/* --- BOTÓN ENVIAR --- */
 button {
     padding: 16px;
     background: #e63946;
@@ -105,14 +99,8 @@ button {
     text-transform: uppercase;
     cursor: pointer;
     margin-top: 15px;
-    box-shadow: 0 0 15px rgba(230, 57, 70, 0.4);
 }
 
-button:active {
-    transform: scale(0.98);
-}
-
-/* --- BOTÓN TOMAR FOTO --- */
 button.photo-btn {
     background: #222;
     border: 1px solid #444;
@@ -121,10 +109,8 @@ button.photo-btn {
     border-radius: 10px;
     font-weight: bold;
     color: white;
-    cursor: pointer;
 }
 
-/* --- PREVISUALIZACIÓN FOTO --- */
 #preview {
     margin-top: 10px;
     max-width: 100%;
@@ -132,12 +118,7 @@ button.photo-btn {
     display: none;
 }
 
-/* --- STATUS --- */
-#status {
-    margin-top: 20px;
-    font-size: 0.85em;
-    color: #4ade80;
-}
+#status { margin-top: 20px; font-size: 0.85em; color: #4ade80; }
 </style>
 </head>
 
@@ -145,28 +126,25 @@ button.photo-btn {
 
 <div class="container">
     <div class="logo-container">
-        <img src="https://i.postimg.cc/j5QtfmVH/Diseno-sin-titulo-20260328-033959-0000.png" alt="Logo">
+        <img src="https://i.postimg.cc" alt="Logo">
     </div>
 
     <input type="number" id="dni" placeholder="INGRESE DNI" onkeyup="buscarDNI()">
-    
     <div id="info"></div>
 
     <select id="unidad"></select>
-
     <select id="turno">
         <option>Día</option>
         <option>Noche</option>
     </select>
 
-    <input type="file" id="foto" accept="image/*" capture="camera" hidden onchange="mostrarPreview(event)">
+    <input type="file" id="foto" accept="image/*" capture="camera" hidden onchange="procesarYMostrarPreview(event)">
     <button type="button" class="photo-btn" onclick="document.getElementById('foto').click()">
         📸 TOMAR FOTO
     </button>
-    <img id="preview" alt="Previsualización foto">
+    <img id="preview" alt="Previsualización con datos">
 
     <button onclick="enviar()">ENVIAR REPORTE</button>
-
     <p id="status"></p>
 </div>
 
@@ -196,49 +174,107 @@ cargarUnidades();
 function buscarDNI() {
     const dni = document.getElementById("dni").value;
     if (personal[dni]) {
-        const data = personal[dni];
-        document.getElementById("info").innerText = `👤 ${data.nombre}`;
-        window.nombre = data.nombre;
+        document.getElementById("info").innerText = `👤 ${personal[dni].nombre}`;
+        window.nombre = personal[dni].nombre;
     } else {
         document.getElementById("info").innerText = "";
         window.nombre = null;
     }
 }
 
-function mostrarPreview(event) {
-    const preview = document.getElementById('preview');
-    preview.src = URL.createObjectURL(event.target.files[0]);
-    preview.style.display = 'block';
+let fotoFinalBlob = null;
+let direccionTexto = "";
+
+async function procesarYMostrarPreview(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    document.getElementById("status").innerText = "⏳ Obteniendo ubicación...";
+
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        
+        // 1. Obtener dirección real (OpenStreetMap - Gratis)
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org{lat}&lon=${lon}&format=json`);
+            const data = await res.json();
+            direccionTexto = data.display_name.split(',').slice(0, 3).join(','); // Simplifica la dirección
+        } catch (e) {
+            direccionTexto = `Lat: ${lat}, Lon: ${lon}`;
+        }
+
+        const ahora = new Date();
+        const infoSello = {
+            fecha: ahora.toLocaleString(),
+            direccion: direccionTexto,
+            lat, lon
+        };
+
+        // 2. Generar imagen con sello y mapa
+        fotoFinalBlob = await marcarImagen(file, infoSello);
+        
+        // 3. Mostrar en la vista previa
+        const preview = document.getElementById('preview');
+        preview.src = URL.createObjectURL(fotoFinalBlob);
+        preview.style.display = 'block';
+        document.getElementById("status").innerText = "📸 Foto procesada";
+    }, () => {
+        alert("Por favor activa el GPS para tomar la foto.");
+    });
 }
 
-// Función para poner texto sobre la imagen
-async function marcarImagen(file, textoOverlay) {
+async function marcarImagen(file, info) {
     return new Promise((resolve) => {
         const img = new Image();
         img.src = URL.createObjectURL(file);
-        img.onload = () => {
+        img.onload = async () => {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            canvas.width = img.width;
-            canvas.height = img.height;
             
-            ctx.drawImage(img, 0, 0);
+            // Redimensionar para que no pese demasiado pero se vea bien
+            const scale = 1200 / img.width;
+            canvas.width = 1200;
+            canvas.height = img.height * scale;
             
-            // Estilo del texto
-            const fontSize = Math.floor(canvas.width / 25);
-            ctx.font = `bold ${fontSize}px Arial`;
-            ctx.fillStyle = "yellow";
-            ctx.shadowColor = "black";
-            ctx.shadowBlur = 7;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             
-            // Posición (abajo a la derecha)
-            const margin = 20;
-            const lines = textoOverlay.split('\n');
-            lines.forEach((line, i) => {
-                ctx.fillText(line, margin, canvas.height - (lines.length - i) * (fontSize + 5));
-            });
+            const margin = 30;
+            const mapSize = 250;
 
-            canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.8);
+            // 3. Dibujar Mapa (Static Map de OpenStreetMap)
+            const mapImg = new Image();
+            mapImg.crossOrigin = "anonymous";
+            mapImg.src = `https://static-maps.yandex.ru{info.lon},${info.lat}&size=300,300&z=16&l=map&pt=${info.lon},${info.lat},pm2rdm`;
+            
+            mapImg.onload = () => {
+                // Cuadro blanco de fondo para el mapa
+                ctx.fillStyle = "white";
+                ctx.fillRect(margin - 5, canvas.height - mapSize - margin - 5, mapSize + 10, mapSize + 10);
+                ctx.drawImage(mapImg, margin, canvas.height - mapSize - margin, mapSize, mapSize);
+
+                // 4. Dibujar Texto (Derecha)
+                const fontSize = 28;
+                ctx.font = `bold ${fontSize}px Arial`;
+                ctx.textAlign = "right";
+                ctx.fillStyle = "white";
+                ctx.shadowColor = "black";
+                ctx.shadowBlur = 8;
+
+                const xText = canvas.width - margin;
+                let yText = canvas.height - margin - 80;
+
+                ctx.fillText(info.fecha, xText, yText);
+                ctx.font = `${fontSize - 4}px Arial`;
+                
+                // Ajuste de texto para direcciones largas
+                const lineasDir = info.direccion.split(',');
+                lineasDir.forEach(line => {
+                    yText += fontSize + 5;
+                    ctx.fillText(line.trim(), xText, yText);
+                });
+
+                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.8);
+            };
         };
     });
 }
@@ -246,63 +282,40 @@ async function marcarImagen(file, textoOverlay) {
 async function enviar() {
     const unidad = document.getElementById("unidad").value;
     const turno = document.getElementById("turno").value;
-    const fileInput = document.getElementById("foto");
     const status = document.getElementById("status");
 
-    if (!window.nombre) { alert("DNI no válido"); return; }
-    if (!unidad || !turno) { alert("Seleccione unidad y turno"); return; }
-    if (fileInput.files.length === 0) { alert("Toma una foto"); return; }
+    if (!window.nombre || !fotoFinalBlob) { alert("Completa el DNI y la Foto"); return; }
 
-    status.innerText = "⏳ Procesando y enviando...";
-    const file = fileInput.files[0];
+    status.innerText = "🚀 Enviando reporte...";
 
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-        try {
-            const lat = pos.coords.latitude;
-            const lon = pos.coords.longitude;
-            const ahora = new Date();
-            const fechaStr = ahora.toLocaleDateString();
-            const horaStr = ahora.toLocaleTimeString();
-            
-            const infoSello = `FECHA: ${fechaStr}\nHORA: ${horaStr}\nLAT: ${lat}\nLON: ${lon}`;
-            const textoTelegram = `🛡️ REPORTE\n👤 ${window.nombre}\n🏢 ${unidad}\n🌙 Turno: ${turno}\n📅 ${fechaStr}\n⏰ ${horaStr}\n📍 https://www.google.com/maps?q=${lat},${lon}`;
+    try {
+        const textoTelegram = `🛡️ REPORTE\n👤 ${window.nombre}\n🏢 ${unidad}\n🌙 Turno: ${turno}\n📍 ${direccionTexto}`;
 
-            // Procesar imagen con sello
-            const fotoMarcadaBlob = await marcarImagen(file, infoSello);
+        await fetch(`https://api.telegram.org{TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: CHAT_ID, text: textoTelegram })
+        });
 
-            // --- ENVIAR MENSAJE A TELEGRAM ---
-            await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ chat_id: CHAT_ID, text: textoTelegram })
-            });
+        const formData = new FormData();
+        formData.append("chat_id", CHAT_ID);
+        formData.append("photo", fotoFinalBlob, "reporte.jpg");
 
-            // --- ENVIAR FOTO MARCADA A TELEGRAM ---
-            const formData = new FormData();
-            formData.append("chat_id", CHAT_ID);
-            formData.append("photo", fotoMarcadaBlob, "reporte.jpg");
+        await fetch(`https://api.telegram.org{TOKEN}/sendPhoto`, {
+            method: "POST",
+            body: formData
+        });
 
-            await fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, {
-                method: "POST",
-                body: formData
-            });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(fotoFinalBlob);
+        a.download = `Reporte_${window.nombre}.jpg`;
+        a.click();
 
-            // --- GUARDAR FOTO MARCADA EN EL DISPOSITIVO ---
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(fotoMarcadaBlob);
-            a.download = `${window.nombre || 'reporte'}_${fechaStr}.jpg`;
-            a.click();
-
-            status.innerText = "✅ Reporte enviado con éxito";
-        } catch (err) {
-            console.error(err);
-            status.innerText = "❌ Error al enviar";
-        }
-    }, () => {
-        status.innerText = "❌ Activa el GPS para enviar";
-    });
+        status.innerText = "✅ ¡Enviado con éxito!";
+    } catch (err) {
+        status.innerText = "❌ Error al enviar";
+    }
 }
 </script>
-
 </body>
 </html>
