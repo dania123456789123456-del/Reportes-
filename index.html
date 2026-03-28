@@ -4,105 +4,167 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SISTEMA DE REPORTE - SEGURIDAD</title>
+
     <style>
         :root { --primary: #007bff; --success: #28a745; --dark: #1a1a1b; }
-        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: var(--dark); color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
-        .container { background: #2d2d2e; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 400px; text-align: center; border-top: 5px solid var(--primary); }
-        h1 { font-size: 20px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px; color: var(--primary); }
-        p { color: #aaa; font-size: 14px; margin-bottom: 25px; }
-        .upload-area { border: 2px dashed #444; border-radius: 15px; padding: 20px; margin-bottom: 20px; }
-        input[type="file"] { width: 100%; color: #aaa; margin-top: 10px; }
-        .btn { background: var(--primary); color: white; border: none; padding: 18px; border-radius: 12px; cursor: pointer; font-size: 16px; width: 100%; font-weight: bold; text-transform: uppercase; transition: 0.3s; }
-        .btn:disabled { background: #555; cursor: not-allowed; }
-        #status { margin-top: 25px; padding: 15px; border-radius: 8px; font-size: 14px; background: rgba(255,255,255,0.05); display: none; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--dark);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: #2d2d2e;
+            padding: 30px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            border-top: 5px solid var(--primary);
+        }
+
+        h1 {
+            font-size: 20px;
+            color: var(--primary);
+        }
+
+        .upload-area {
+            border: 2px dashed #444;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 12px;
+            width: 100%;
+            font-weight: bold;
+        }
+
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
     </style>
 </head>
+
 <body>
 
 <div class="container">
     <h1>🛡️ Reporte Guardia</h1>
-    <p>Control de patrullaje a Excel</p>
-    
+
     <div class="upload-area">
-        <label style="display:block; margin-bottom:10px;">Capturar Evidencia:</label>
+        <label>Capturar Evidencia:</label>
         <input type="file" id="fotoInput" accept="image/*" capture="camera">
     </div>
 
     <button id="btnEnviar" class="btn">Confirmar y Enviar</button>
-    
+
     <div id="status"></div>
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby6m13mLSWEXEdKsg4CFSIVKY5mqiJF6FoBZ118efn16zSxrhkqIoK2ge6iuHm5gIzNRw/exec";
-    const IMGBB_API_KEY = "116dcfe2c6a32c3b9d6b5a710170e69a";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby6m13mLSWEXEdKsg4CFSIVKY5mqiJF6FoBZ118efn16zSxrhkqIoK2ge6iuHm5gIzNRw/exec";
 
-    const btn = document.getElementById('btnEnviar');
-    const statusDiv = document.getElementById('status');
+const btn = document.getElementById('btnEnviar');
+const statusDiv = document.getElementById('status');
 
-    btn.addEventListener('click', async () => {
-        const fileInput = document.getElementById('fotoInput');
-        if (fileInput.files.length === 0) return alert("⚠️ Debe tomar una foto para el reporte.");
+btn.addEventListener('click', async () => {
 
-        btn.disabled = true;
-        btn.innerText = "ENVIANDO...";
-        statusDiv.style.display = "block";
-        statusDiv.innerHTML = "⏳ Subiendo imagen y GPS...";
-        statusDiv.style.color = "#aaa";
+    const fileInput = document.getElementById('fotoInput');
 
+    if (fileInput.files.length === 0) {
+        alert("⚠️ Debe tomar una foto");
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "ENVIANDO...";
+    statusDiv.style.display = "block";
+    statusDiv.innerHTML = "⏳ Procesando...";
+    statusDiv.style.color = "#aaa";
+
+    try {
+        const file = fileInput.files[0];
+
+        // 📷 convertir a base64
+        const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = error => reject(error);
+        });
+
+        // 📍 GPS
         navigator.geolocation.getCurrentPosition(async (pos) => {
-            try {
-                // 1. Subir a ImgBB (Corregido)
-                const formData = new FormData();
-                formData.append("image", fileInput.files[0]);
 
-                const resImg = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-    method: "POST",
-    body: formData
-});
-                const dataImg = await resImg.json();
-                
-                if (!dataImg.success) throw new Error("Error en imagen");
-                const linkFoto = dataImg.data.url;
+            const ahora = new Date();
 
-                // 2. Preparar datos
-                const ahora = new Date();
-                const datos = {
-                    fecha: ahora.toLocaleDateString('es-ES'),
-                    hora: ahora.toLocaleTimeString('es-ES'),
-                    latitud: pos.coords.latitude,
-                    longitud: pos.coords.longitude,
-                    mapa_link: `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`,
-                    foto_url: linkFoto,
-                    dispositivo: navigator.userAgent.substring(0, 50)
-                };
+            const datos = {
+                fecha: ahora.toLocaleDateString(),
+                hora: ahora.toLocaleTimeString(),
+                latitud: pos.coords.latitude,
+                longitud: pos.coords.longitude,
+                mapa_link: `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`,
+                foto_base64: base64,
+                nombre_archivo: file.name,
+                dispositivo: navigator.userAgent
+            };
 
-                // 3. Enviar a Google Sheets
-                await fetch(SCRIPT_URL, {
-                    method: "POST",
-                    mode: "no-cors", 
-                    body: JSON.stringify(datos)
-                });
+            const respuesta = await fetch(SCRIPT_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(datos)
+            });
 
-                statusDiv.innerHTML = "✅ REPORTE GUARDADO EN EXCEL<br><small>Revisa tu hoja de cálculo</small>";
-                statusDiv.style.color = "#28a745";
-                fileInput.value = "";
-                btn.innerText = "ENVIAR NUEVO REPORTE";
-                btn.disabled = false;
-                
-            } catch (err) {
-                console.error(err);
-                statusDiv.innerHTML = "❌ Error en el envío. Intente de nuevo.";
-                statusDiv.style.color = "#ff4d4d";
-                btn.disabled = false;
-                btn.innerText = "REINTENTAR";
+            const texto = await respuesta.text();
+            console.log("RESPUESTA:", texto);
+
+            if (!texto.includes("ok")) {
+                throw new Error("Error en servidor");
             }
-        }, (error) => {
-            statusDiv.innerHTML = "❌ Error: Debe activar el GPS.";
-            statusDiv.style.color = "#ff4d4d";
+
+            statusDiv.innerHTML = "✅ REPORTE GUARDADO EN EXCEL";
+            statusDiv.style.color = "#28a745";
+
+            fileInput.value = "";
+            btn.innerText = "ENVIAR NUEVO REPORTE";
             btn.disabled = false;
-        }, { enableHighAccuracy: true });
-    });
+
+        }, () => {
+            statusDiv.innerHTML = "❌ Activa el GPS";
+            statusDiv.style.color = "red";
+            btn.disabled = false;
+        });
+
+    } catch (err) {
+        console.error(err);
+        statusDiv.innerHTML = "❌ Error real en el envío";
+        statusDiv.style.color = "red";
+        btn.disabled = false;
+        btn.innerText = "REINTENTAR";
+    }
+});
 </script>
 
 </body>
