@@ -176,7 +176,12 @@ async function procesarYMostrar(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    document.getElementById("status").innerText = "⏳ Obteniendo ubicación...";
+    // MOSTRAR VISTA PREVIA LIMPIA (SOLO LA FOTO)
+    const preview = document.getElementById('preview');
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+
+    document.getElementById("status").innerText = "⏳ Procesando datos internos...";
 
     navigator.geolocation.getCurrentPosition(async (pos) => {
         const { latitude: lat, longitude: lon } = pos.coords;
@@ -230,15 +235,12 @@ async function procesarYMostrar(event) {
 
                 canvas.toBlob((blob) => {
                     fotoConSelloBlob = blob;
-                    const preview = document.getElementById('preview');
-                    preview.src = URL.createObjectURL(blob);
-                    preview.style.display = 'block';
-                    document.getElementById("status").innerText = "📸 Foto con ubicación lista";
+                    document.getElementById("status").innerText = "✅ Datos listos para enviar";
                 }, 'image/jpeg', 0.9);
             };
         };
     }, () => {
-        alert("Activa el GPS para procesar la foto.");
+        alert("Activa el GPS.");
     });
 }
 
@@ -249,7 +251,7 @@ async function enviar() {
 
     if (!window.nombre || !fotoConSelloBlob) { alert("DNI y Foto son obligatorios"); return; }
 
-    status.innerText = "🚀 Enviando...";
+    status.innerText = "🚀 Enviando reporte...";
 
     try {
         const textoTelegram = `🛡️ REPORTE\n👤 ${window.nombre}\n🏢 ${unidad}\n🌙 Turno: ${turno}\n📍 ${direccionActual}`;
@@ -269,13 +271,12 @@ async function enviar() {
             body: formData
         });
 
-        // Descarga automática de la foto procesada
         const a = document.createElement('a');
         a.href = URL.createObjectURL(fotoConSelloBlob);
         a.download = `Reporte_${window.nombre}.jpg`;
         a.click();
 
-        status.innerText = "✅ Enviado y guardado";
+        status.innerText = "✅ Reporte enviado y foto descargada";
     } catch (err) {
         status.innerText = "❌ Error al enviar";
     }
